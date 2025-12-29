@@ -8,16 +8,15 @@ import { Download, Image, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 const FeaturedImageGenerator = () => {
-  const [text, setText] = useState("");
+  const [categoryText, setCategoryText] = useState("HEALTH AND WELLNESS");
+  const [mainText, setMainText] = useState("How to Have a Better Work-Life Balance");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [bgImage, setBgImage] = useState<string | null>(null);
-  const [primaryColor, setPrimaryColor] = useState("#1a1a2e");
-  const [secondaryColor, setSecondaryColor] = useState("#0f3460");
-  const [overlayColor, setOverlayColor] = useState("#000000");
-  const [overlayOpacity, setOverlayOpacity] = useState(0.5);
-  const [textColor, setTextColor] = useState("#ffffff");
-  const [accentColor, setAccentColor] = useState("#6366f1");
+  const [bannerColor, setBannerColor] = useState("#ffffff");
+  const [bannerOpacity, setBannerOpacity] = useState(0.85);
+  const [categoryColor, setCategoryColor] = useState("#c67c4e");
+  const [titleColor, setTitleColor] = useState("#1a1a1a");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,8 +33,8 @@ const FeaturedImageGenerator = () => {
   }, []);
 
   const generateImage = useCallback(async () => {
-    if (!text.trim()) {
-      toast.error("Please enter some text");
+    if (!mainText.trim()) {
+      toast.error("Please enter a main title");
       return;
     }
 
@@ -58,7 +57,6 @@ const FeaturedImageGenerator = () => {
         img.crossOrigin = "anonymous";
         await new Promise<void>((resolve, reject) => {
           img.onload = () => {
-            // Cover the canvas with the image
             const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
             const x = (canvas.width - img.width * scale) / 2;
             const y = (canvas.height - img.height * scale) / 2;
@@ -69,66 +67,49 @@ const FeaturedImageGenerator = () => {
           img.src = bgImage;
         });
       } else {
-        // Create gradient background
+        // Fallback gradient if no background
         const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, primaryColor);
-        gradient.addColorStop(0.5, secondaryColor);
-        gradient.addColorStop(1, primaryColor);
+        gradient.addColorStop(0, "#e8e4df");
+        gradient.addColorStop(1, "#d4cfc9");
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // First overlay - solid color
-      ctx.fillStyle = `${overlayColor}${Math.round(overlayOpacity * 255).toString(16).padStart(2, '0')}`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Calculate banner dimensions
+      const bannerHeight = 340;
+      const bannerY = (canvas.height - bannerHeight) / 2;
+      const bannerPadding = 100;
 
-      // Second overlay - gradient for depth
-      const overlayGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      overlayGradient.addColorStop(0, "rgba(0, 0, 0, 0.2)");
-      overlayGradient.addColorStop(0.5, "rgba(0, 0, 0, 0)");
-      overlayGradient.addColorStop(1, "rgba(0, 0, 0, 0.3)");
-      ctx.fillStyle = overlayGradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Draw semi-transparent white banner overlay
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 255, g: 255, b: 255 };
+      };
+      
+      const bannerRgb = hexToRgb(bannerColor);
+      ctx.fillStyle = `rgba(${bannerRgb.r}, ${bannerRgb.g}, ${bannerRgb.b}, ${bannerOpacity})`;
+      ctx.fillRect(bannerPadding, bannerY, canvas.width - bannerPadding * 2, bannerHeight);
 
-      // Add subtle pattern overlay
-      ctx.fillStyle = "rgba(255, 255, 255, 0.02)";
-      for (let i = 0; i < canvas.width; i += 30) {
-        for (let j = 0; j < canvas.height; j += 30) {
-          if ((i + j) % 60 === 0) {
-            ctx.beginPath();
-            ctx.arc(i, j, 2, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-      }
-
-      // Add decorative elements with accent color
-      ctx.strokeStyle = `${accentColor}4D`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(50, 50);
-      ctx.lineTo(150, 50);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(canvas.width - 150, canvas.height - 50);
-      ctx.lineTo(canvas.width - 50, canvas.height - 50);
-      ctx.stroke();
-
-      // Configure text
+      // Draw category text (smaller, uppercase, accent color)
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      ctx.font = `500 24px "Inter", system-ui, sans-serif`;
+      ctx.letterSpacing = "8px";
+      ctx.fillStyle = categoryColor;
+      const categoryY = bannerY + 70;
+      ctx.fillText(categoryText.toUpperCase(), canvas.width / 2, categoryY);
 
-      // Calculate font size based on text length
-      let fontSize = 72;
-      if (text.length > 50) fontSize = 56;
-      if (text.length > 100) fontSize = 44;
-      if (text.length > 150) fontSize = 36;
+      // Draw main title (larger, serif-style)
+      ctx.font = `400 64px Georgia, "Times New Roman", serif`;
+      ctx.fillStyle = titleColor;
 
-      ctx.font = `bold ${fontSize}px "Inter", system-ui, sans-serif`;
-
-      // Word wrap text
-      const maxWidth = canvas.width - 160;
-      const words = text.split(" ");
+      // Word wrap for main title
+      const maxWidth = canvas.width - bannerPadding * 2 - 80;
+      const words = mainText.split(" ");
       const lines: string[] = [];
       let currentLine = "";
 
@@ -144,37 +125,12 @@ const FeaturedImageGenerator = () => {
       }
       if (currentLine) lines.push(currentLine);
 
-      // Calculate vertical position
-      const lineHeight = fontSize * 1.3;
-      const totalHeight = lines.length * lineHeight;
-      let y = (canvas.height - totalHeight) / 2 + lineHeight / 2;
-
-      // Draw text shadow
-      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-      lines.forEach((line) => {
-        ctx.fillText(line, canvas.width / 2 + 3, y + 3);
-        y += lineHeight;
+      // Draw title lines
+      const lineHeight = 80;
+      const titleStartY = categoryY + 80;
+      lines.forEach((line, index) => {
+        ctx.fillText(line, canvas.width / 2, titleStartY + index * lineHeight);
       });
-
-      // Draw main text
-      y = (canvas.height - totalHeight) / 2 + lineHeight / 2;
-      ctx.fillStyle = textColor;
-      lines.forEach((line) => {
-        ctx.fillText(line, canvas.width / 2, y);
-        y += lineHeight;
-      });
-
-      // Add accent glow
-      ctx.shadowColor = `${accentColor}80`;
-      ctx.shadowBlur = 30;
-      ctx.strokeStyle = `${accentColor}99`;
-      ctx.lineWidth = 1;
-      y = (canvas.height - totalHeight) / 2 + lineHeight / 2;
-      lines.forEach((line) => {
-        ctx.strokeText(line, canvas.width / 2, y);
-        y += lineHeight;
-      });
-      ctx.shadowBlur = 0;
 
       // Convert to image
       const imageUrl = canvas.toDataURL("image/png");
@@ -186,7 +142,7 @@ const FeaturedImageGenerator = () => {
     } finally {
       setIsGenerating(false);
     }
-  }, [text, bgImage, primaryColor, secondaryColor, overlayColor, overlayOpacity, textColor, accentColor]);
+  }, [mainText, categoryText, bgImage, bannerColor, bannerOpacity, categoryColor, titleColor]);
 
   const downloadImage = useCallback(() => {
     if (!generatedImage) return;
@@ -219,12 +175,27 @@ const FeaturedImageGenerator = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Textarea
-                placeholder="Enter your blog title or headline..."
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                className="min-h-[100px] resize-none"
-              />
+              {/* Category Text Input */}
+              <div className="space-y-2">
+                <Label>Category / Subtitle</Label>
+                <Textarea
+                  placeholder="Enter category text (e.g., HEALTH AND WELLNESS)"
+                  value={categoryText}
+                  onChange={(e) => setCategoryText(e.target.value)}
+                  className="min-h-[60px] resize-none"
+                />
+              </div>
+
+              {/* Main Title Input */}
+              <div className="space-y-2">
+                <Label>Main Title</Label>
+                <Textarea
+                  placeholder="Enter your main blog title..."
+                  value={mainText}
+                  onChange={(e) => setMainText(e.target.value)}
+                  className="min-h-[80px] resize-none"
+                />
+              </div>
 
               {/* Background Image Upload */}
               <div className="space-y-2">
@@ -262,80 +233,54 @@ const FeaturedImageGenerator = () => {
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Primary BG</Label>
+                    <Label className="text-xs text-muted-foreground">Banner Color</Label>
                     <div className="flex gap-2 items-center">
                       <Input
                         type="color"
-                        value={primaryColor}
-                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        value={bannerColor}
+                        onChange={(e) => setBannerColor(e.target.value)}
                         className="w-10 h-8 p-0 border-0 cursor-pointer"
                       />
-                      <span className="text-xs text-muted-foreground">{primaryColor}</span>
+                      <span className="text-xs text-muted-foreground">{bannerColor}</span>
                     </div>
                   </div>
                   
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Secondary BG</Label>
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        type="color"
-                        value={secondaryColor}
-                        onChange={(e) => setSecondaryColor(e.target.value)}
-                        className="w-10 h-8 p-0 border-0 cursor-pointer"
-                      />
-                      <span className="text-xs text-muted-foreground">{secondaryColor}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Overlay Color</Label>
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        type="color"
-                        value={overlayColor}
-                        onChange={(e) => setOverlayColor(e.target.value)}
-                        className="w-10 h-8 p-0 border-0 cursor-pointer"
-                      />
-                      <span className="text-xs text-muted-foreground">{overlayColor}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Overlay Opacity</Label>
+                    <Label className="text-xs text-muted-foreground">Banner Opacity</Label>
                     <Input
                       type="range"
                       min="0"
                       max="1"
-                      step="0.1"
-                      value={overlayOpacity}
-                      onChange={(e) => setOverlayOpacity(parseFloat(e.target.value))}
+                      step="0.05"
+                      value={bannerOpacity}
+                      onChange={(e) => setBannerOpacity(parseFloat(e.target.value))}
                       className="w-full"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Text Color</Label>
+                    <Label className="text-xs text-muted-foreground">Category Color</Label>
                     <div className="flex gap-2 items-center">
                       <Input
                         type="color"
-                        value={textColor}
-                        onChange={(e) => setTextColor(e.target.value)}
+                        value={categoryColor}
+                        onChange={(e) => setCategoryColor(e.target.value)}
                         className="w-10 h-8 p-0 border-0 cursor-pointer"
                       />
-                      <span className="text-xs text-muted-foreground">{textColor}</span>
+                      <span className="text-xs text-muted-foreground">{categoryColor}</span>
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Accent Color</Label>
+                    <Label className="text-xs text-muted-foreground">Title Color</Label>
                     <div className="flex gap-2 items-center">
                       <Input
                         type="color"
-                        value={accentColor}
-                        onChange={(e) => setAccentColor(e.target.value)}
+                        value={titleColor}
+                        onChange={(e) => setTitleColor(e.target.value)}
                         className="w-10 h-8 p-0 border-0 cursor-pointer"
                       />
-                      <span className="text-xs text-muted-foreground">{accentColor}</span>
+                      <span className="text-xs text-muted-foreground">{titleColor}</span>
                     </div>
                   </div>
                 </div>
@@ -343,7 +288,7 @@ const FeaturedImageGenerator = () => {
 
               <Button
                 onClick={generateImage}
-                disabled={isGenerating || !text.trim()}
+                disabled={isGenerating || !mainText.trim()}
                 className="w-full"
               >
                 {isGenerating ? (
